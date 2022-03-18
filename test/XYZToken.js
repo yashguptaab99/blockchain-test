@@ -45,8 +45,8 @@ contract('XYZToken', ([creator, a, b, c, d, e]) => {
     });
 
     it('token total supply is correct', async () => {
-        const totalSupply = await XYZtoken.totalSupply();
-        assert.equal(totalSupply.toString(), '10000');
-      });
+      const totalSupply = await XYZtoken.totalSupply();
+      assert.equal(totalSupply.toString(), '10000');
+    });
   });
 });
