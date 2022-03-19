@@ -158,4 +158,25 @@ contract Staking {
         summary.total_amount = totalStakeAmount;
         return summary;
     }
+
+    function claimRewards() public returns (bool) {
+        uint256 user_index = stakes[msg.sender];
+        uint256 reward;
+        for (
+            uint256 s = 0;
+            s < stakeholders[user_index].address_stakes.length;
+            s += 1
+        ) {
+            uint256 availableReward = calculateStakeReward(
+                stakeholders[user_index].address_stakes[s]
+            );
+            reward += availableReward;
+            // Reset timer of stake
+            stakeholders[user_index].address_stakes[s].since = block.timestamp;
+        }
+        if (reward > 0) {
+            rewardToken.mint(msg.sender, reward);
+        }
+        return true;
+    }
 }

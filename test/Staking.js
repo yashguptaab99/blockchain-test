@@ -177,7 +177,7 @@ contract('Staking', ([creator, a, b, c, d, e]) => {
       );
     });
 
-    it('calculate rewards', async () => {
+    it('Calculate rewards', async () => {
       await helper.advanceTimeAndBlock(3600 * 24);
       let summary = await staking.stakingSummary(b);
       let stake = summary.stakes[0];
@@ -216,6 +216,27 @@ contract('Staking', ([creator, a, b, c, d, e]) => {
       assert.equal(
         second_balance.toNumber(),
         after_balance.toNumber(),
+        'Failed to reset timer second withdrawal reward'
+      );
+    });
+
+    it('Calculate rewards and and just claim reward', async () => {
+      let summary = await staking.stakingSummary(b);
+      let stake = summary.stakes[0];
+      let before_balance = await ABCtoken.balanceOf(b);
+      await staking.claimRewards({ from: b });
+      let after_balance = await ABCtoken.balanceOf(b);
+      assert.equal(
+        before_balance.toNumber() + Number(stake.claimable),
+        after_balance.toNumber(),
+        'Failed to reset timer second withdrawal reward'
+      );
+      // await helper.advanceTimeAndBlock(3600 * 24);
+      summary = await staking.stakingSummary(b);
+      stake = summary.stakes[0];
+      assert.equal(
+        Number(stake.claimable),
+        0,
         'Failed to reset timer second withdrawal reward'
       );
     });
