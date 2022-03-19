@@ -176,5 +176,48 @@ contract('Staking', ([creator, a, b, c, d, e]) => {
         'Failed to remove stake when it was empty'
       );
     });
+
+    it('calculate rewards', async () => {
+      await helper.advanceTimeAndBlock(3600 * 24);
+      let summary = await staking.stakingSummary(b);
+      let stake = summary.stakes[0];
+      assert.equal(
+        stake.claimable,
+        27,
+        'Reward should be 27 after staking for 24 hours'
+      );
+    });
+
+    it('Withdraw stake and get reward', async () => {
+      await XYZtoken.approve(staking.address, 200, { from: b });
+
+      await staking.stake(200, { from: b });
+      await helper.advanceTimeAndBlock(3600 * 24);
+
+      let stakeSummary = await staking.stakingSummary(b);
+      let stake = stakeSummary.stakes[0];
+      await staking.withdrawStake(100, 1, { from: b });
+
+      // Balance of account holder should be updated by 104 tokens
+      let after_balance = await ABCtoken.balanceOf(b);
+
+      let expected = Number(stake.claimable);
+      assert.equal(
+        after_balance.toNumber(),
+        expected,
+        'Failed to withdraw the stake correctly'
+      );
+      try {
+        await staking.withdrawStake(100, 1, { from: b });
+      } catch (error) {
+        assert.fail(error);
+      }
+      let second_balance = await ABCtoken.balanceOf(b);
+      assert.equal(
+        second_balance.toNumber(),
+        after_balance.toNumber(),
+        'Failed to reset timer second withdrawal reward'
+      );
+    });
   });
 });
