@@ -1,6 +1,7 @@
 const { assert, use } = require('chai');
 const { default: Web3 } = require('web3');
 const truffleAssert = require('truffle-assertions');
+const helper = require('./helpers/truffleTestHelpers');
 
 const XYZToken = artifacts.require('XYZToken');
 const ABCToken = artifacts.require('ABCToken');
@@ -116,6 +117,64 @@ contract('Staking', ([creator, a, b, c, d, e]) => {
       } catch (error) {
         assert.equal(error.reason, 'Cannot stake more than you own');
       }
+    });
+
+    it('Cannot withdraw bigger amount than current stake', async () => {
+      try {
+        await staking.withdrawStake(200, 0, { from: a });
+      } catch (error) {
+        assert.equal(
+          error.reason,
+          'Staking: Cannot withdraw more than you have staked',
+          'Failed to notice a too big withdrawal from stake'
+        );
+      }
+    });
+
+    it('Withdraw 50 from a stake', async () => {
+      let withdraw_amount = 50;
+      await ABCtoken.addMinter(staking.address);
+      await staking.withdrawStake(withdraw_amount, 0, { from: a });
+      let summary = await staking.stakingSummary(a);
+
+      assert.equal(
+        summary.total_amount,
+        100 - withdraw_amount,
+        'The total staking amount should be 150'
+      );
+      // Iterate all stakes and verify their amount as well.
+      let stake_amount = summary.stakes[0].amount;
+
+      assert.equal(
+        stake_amount,
+        100 - withdraw_amount,
+        'Wrong Amount in first stake after withdrawal'
+      );
+      const staking_contract_balance = await XYZtoken.balanceOf(
+        staking.address
+      );
+      assert.equal(
+        staking_contract_balance.toString(),
+        (await staking.totalStaking()).toString()
+      );
+
+      const a_balance = await XYZtoken.balanceOf(a);
+      assert.equal(
+        a_balance.toString(),
+        Number(5000 - 100 + withdraw_amount).toString()
+      );
+    });
+
+    it('Remove stake if empty', async () => {
+      let withdraw_amount = 50;
+      await staking.withdrawStake(withdraw_amount, 0, { from: a });
+      let summary = await staking.stakingSummary(a);
+
+      assert.equal(
+        summary.stakes[0].user,
+        '0x0000000000000000000000000000000000000000',
+        'Failed to remove stake when it was empty'
+      );
     });
   });
 });

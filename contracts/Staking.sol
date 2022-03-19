@@ -88,4 +88,74 @@ contract Staking {
         // Emit an event that the stake has occured
         emit Staked(msg.sender, _amount, index, timestamp);
     }
+
+    function calculateStakeReward(Stake memory _current_stake)
+        internal
+        view
+        returns (uint256)
+    {
+        return (((block.timestamp - _current_stake.since) / 1 days) *
+            ((_current_stake.amount * 10000) / (totalStaking * 365)));
+    }
+
+    function withdrawStake(uint256 amount, uint256 index)
+        public
+        returns (uint256, uint256)
+    {
+        // Grab user_index which is the index to use to grab the Stake[]
+        uint256 user_index = stakes[msg.sender];
+        Stake memory current_stake = stakeholders[user_index].address_stakes[
+            index
+        ];
+        require(
+            current_stake.amount >= amount,
+            "Staking: Cannot withdraw more than you have staked"
+        );
+
+        // Calculate available Reward first before we start modifying data
+        uint256 reward = calculateStakeReward(current_stake);
+        // Remove by subtracting the money unstaked
+        current_stake.amount = current_stake.amount - amount;
+        // If stake is empty, 0, then remove it from the array of stakes
+        if (current_stake.amount == 0) {
+            delete stakeholders[user_index].address_stakes[index];
+        } else {
+            // If not empty then replace the value of it
+            stakeholders[user_index]
+                .address_stakes[index]
+                .amount = current_stake.amount;
+            // Reset timer of stake
+            stakeholders[user_index].address_stakes[index].since = block
+                .timestamp;
+        }
+
+        stakingToken.transfer(msg.sender, amount);
+        rewardToken.mint(msg.sender, reward);
+        totalStaking -= amount;
+
+        return (amount, reward);
+    }
+
+    function stakingSummary(address _staker)
+        public
+        view
+        returns (StakingSummary memory)
+    {
+        // totalStakeAmount is used to count total staked amount of the address
+        uint256 totalStakeAmount;
+        // Keep a summary in memory since we need to calculate this
+        StakingSummary memory summary = StakingSummary(
+            0,
+            stakeholders[stakes[_staker]].address_stakes
+        );
+        // Itterate all stakes and grab amount of stakes
+        for (uint256 s = 0; s < summary.stakes.length; s += 1) {
+            uint256 availableReward = calculateStakeReward(summary.stakes[s]);
+            summary.stakes[s].claimable = availableReward;
+            totalStakeAmount = totalStakeAmount + summary.stakes[s].amount;
+        }
+        // Assign calculate amount to summary
+        summary.total_amount = totalStakeAmount;
+        return summary;
+    }
 }
